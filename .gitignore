@@ -1,3 +1,6 @@
 /data
 /preprocessed_epochs
 /connectivity
+/figures
+/figures
+*.pyc
