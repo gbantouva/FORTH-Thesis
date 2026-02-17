@@ -1,12 +1,30 @@
 """
-VISUALIZATION TOOL - CORRECTED VERSION
-=======================================
+VISUALIZATION TOOL - FIXED COLOR SCALE VERSION
+===============================================
 - Reads your .npz connectivity files
 - Plots 2x7 Heatmaps (DTF/PDC across all 7 bands)
-- FIXED: Channel names (T1/T2 instead of A1/A2)
+- FIXED: Uses [0, 1] color scale for consistent comparison
+- FIXED: Channel names (T3/T4 instead of A1/A2)
 - Allows you to pick specific epochs
 
-PS F:\FORTH-DATA> & C:/Users/georg/AppData/Local/Programs/Python/Python311/python.exe f:/FORTH-DATA/Thesis/src/final_connectivity/visualize_connectivity.py --file F:\FORTH-DATA\Thesis\connectivity\subject_01_graphs.npz --output_dir F:\FORTH-DATA\Thesis\figures\visualize_connectivity --epochs 0 10 20 30 40 50 60 61 62 63 64 65 70 75 100 110 111 112 113 114 115 120
+CRITICAL CHANGE:
+----------------
+PDC and DTF are theoretically bounded [0, 1]. 
+Now using vmin=0, vmax=1.0 for ALL plots.
+
+This ensures:
+- Same colors = same values across ALL epochs and subjects
+- Direct visual comparison is possible
+- Addresses professor's feedback about inconsistent colors
+
+Usage example:
+--------------
+python visualize_connectivity_FIXED.py \
+    --file F:\FORTH-DATA\Thesis\connectivity\subject_01_graphs.npz \
+    --output_dir F:\FORTH-DATA\Thesis\figures\visualize_connectivity_fixed \
+    --epochs 0 10 20 30 40 50 60 70
+
+PS F:\FORTH_Final_Thesis\FORTH-Thesis\src> & C:/Users/georg/AppData/Local/Programs/Python/Python311/python.exe f:/FORTH_Final_Thesis/FORTH-Thesis/src/connectivity/step2a_visualize_connectivity.py --file F:\FORTH_Final_Thesis\FORTH-Thesis\connectivity\subject_01_graphs.npz --epochs 0 1 2 3 4 5 10 15 20 25 30 35 50 70 72 73 74 75 76 77 78 79 80 85 86 87 88 89 90 91 92 93 94 95 100 110 111 112 113 114 115 120 --output_dir F:\FORTH_Final_Thesis\FORTH-Thesis\figures\connectivity\step2a_visualize_connectivity_scale
 """
 
 import argparse
@@ -30,11 +48,11 @@ BAND_ORDER = ['integrated', 'delta', 'theta', 'alpha', 'beta', 'gamma1']
 
 BAND_LABELS = {
     'integrated': 'Integrated (0.5-45 Hz)',
-    'delta': 'Delta (δ´, 0.5-4 Hz)',
-    'theta': 'Theta (θ¸, 4-8 Hz)',
+    'delta': 'Delta (δ, 0.5-4 Hz)',
+    'theta': 'Theta (θ, 4-8 Hz)',
     'alpha': 'Alpha (α, 8-15 Hz)',
     'beta': 'Beta (β, 15-30 Hz)',
-    'gamma1': 'Gamma1 (γ1‚, 30-45 Hz)'
+    'gamma1': 'Gamma1 (γ1, 30-45 Hz)'
 }
 
 # ============================================================================
@@ -42,7 +60,7 @@ BAND_LABELS = {
 # ============================================================================
 
 def plot_epoch(data, epoch_idx, patient_id, output_dir):
-    """Generates the 2x7 grid for a single epoch."""
+    """Generates the 2x7 grid for a single epoch with FIXED [0,1] color scale."""
     
     # 1. Check if epoch exists
     n_epochs = len(data['orders'])
@@ -50,49 +68,53 @@ def plot_epoch(data, epoch_idx, patient_id, output_dir):
         print(f"Epoch {epoch_idx} out of bounds (File has {n_epochs} epochs). Skipping.")
         return
 
-    # 2. Extract Data & Find Max Value (for consistent colors)
+    # 2. Extract Data
     matrices = {}
-    global_max = 0
+    actual_max = 0  # Track actual max for diagnostic purposes
     
     for band in BAND_ORDER:
-        # Load the specific epoch's matrix (22x22)
+        # Load the specific epoch's matrix (19x19)
         d = data[f'dtf_{band}'][epoch_idx]
         p = data[f'pdc_{band}'][epoch_idx]
         
         matrices[f'dtf_{band}'] = d
         matrices[f'pdc_{band}'] = p
         
-        global_max = max(global_max, d.max(), p.max())
+        # Track actual maximum (for diagnostic printing)
+        actual_max = max(actual_max, d.max(), p.max())
+    
+    # =========================================================================
+    # CRITICAL FIX: Use FIXED color scale [0, 1]
+    # =========================================================================
+    # PDC and DTF are theoretically bounded [0, 1]
+    # Using fixed scale ensures colors are comparable across all plots
+    FIXED_VMIN = 0.0
+    FIXED_VMAX = 1.0
+    
+    # Print diagnostic if values exceed expected range
+    if actual_max > 1.0:
+        print(f"⚠️  Warning: Epoch {epoch_idx} has values > 1.0 (max={actual_max:.3f})")
+        print(f"   This suggests normalization issue in connectivity computation.")
 
-    # 3. Setup the Grid (2 Rows, 7 Columns)
-    #fig, axes = plt.subplots(2, 7, figsize=(28, 8), constrained_layout=True)
-    # NEW (dynamic column count based on your bands)
+    # 3. Setup the Grid
     n_bands = len(BAND_ORDER)
-    # NEW
     fig, axes = plt.subplots(2, n_bands, figsize=(4.5*n_bands, 8))
 
-    
-
-
-    # Get Label (Epilepsy vs Control)
-    # NEW (more accurate for temporal analysis)
-    #label = "ICTAL" if data['labels'][epoch_idx] == 1 else "PRE-ICTAL"
-    # Alternative: Generic temporal indicator
-    #label = "Unknown"  # Until labels are fixed
-    # Get label from file
+    # Get Label
     if 'labels' in data:
         label = "Ictal" if data['labels'][epoch_idx] == 1 else "Pre-ictal"
     else:
         label = "Unknown"
     p_order = data['orders'][epoch_idx]
 
-        # 4. Fill the Grid
+    # 4. Fill the Grid
     for col, band in enumerate(BAND_ORDER):
         # ========================================================================
-        # TOP ROW: DTF (no colorbar)
+        # TOP ROW: DTF (no colorbar) with FIXED scale
         # ========================================================================
         sns.heatmap(matrices[f'dtf_{band}'], ax=axes[0, col], 
-                    cmap='viridis', square=True, vmin=0, vmax=global_max, 
+                    cmap='viridis', square=True, 
+                    vmin=FIXED_VMIN, vmax=FIXED_VMAX,  # ← FIXED SCALE
                     cbar=False, 
                     xticklabels=[], 
                     yticklabels=CHANNEL_NAMES if col == 0 else [],
@@ -103,30 +125,33 @@ def plot_epoch(data, epoch_idx, patient_id, output_dir):
             axes[0, col].set_ylabel('Sink (To)', fontsize=10, fontweight='bold')
         
         # ========================================================================
-        # BOTTOM ROW: PDC (colorbar on last column only)
+        # BOTTOM ROW: PDC with FIXED scale (colorbar on last column only)
         # ========================================================================
         if col == n_bands - 1:
             # Last column: heatmap + thin colorbar
             from mpl_toolkits.axes_grid1 import make_axes_locatable
             
             sns.heatmap(matrices[f'pdc_{band}'], ax=axes[1, col], 
-                        cmap='viridis', square=True, vmin=0, vmax=global_max, 
+                        cmap='viridis', square=True, 
+                        vmin=FIXED_VMIN, vmax=FIXED_VMAX,  # ← FIXED SCALE
                         cbar=False,
                         xticklabels=CHANNEL_NAMES, 
                         yticklabels=CHANNEL_NAMES if col == 0 else [],
                         linewidths=0.5, linecolor='gray')
             
-            # Add colorbar
+            # Add colorbar with FIXED scale
             divider = make_axes_locatable(axes[1, col])
             cax = divider.append_axes("right", size="3%", pad=0.05)
-            sm = plt.cm.ScalarMappable(cmap='viridis', norm=plt.Normalize(vmin=0, vmax=global_max))
+            sm = plt.cm.ScalarMappable(cmap='viridis', 
+                                       norm=plt.Normalize(vmin=FIXED_VMIN, vmax=FIXED_VMAX))
             sm.set_array([])
             cbar = plt.colorbar(sm, cax=cax)
             cbar.set_label('Connectivity Strength', rotation=270, labelpad=15)
         else:
             # All other columns: no colorbar
             sns.heatmap(matrices[f'pdc_{band}'], ax=axes[1, col], 
-                        cmap='viridis', square=True, vmin=0, vmax=global_max, 
+                        cmap='viridis', square=True, 
+                        vmin=FIXED_VMIN, vmax=FIXED_VMAX,  # ← FIXED SCALE
                         cbar=False,
                         xticklabels=CHANNEL_NAMES, 
                         yticklabels=CHANNEL_NAMES if col == 0 else [],
@@ -143,12 +168,15 @@ def plot_epoch(data, epoch_idx, patient_id, output_dir):
             axes[1, col].set_xlabel('Source (From)', fontsize=10, fontweight='bold')
 
     # ========================================================================
-    # LAYOUT AND SAVING (outside loop)
+    # LAYOUT AND SAVING
     # ========================================================================
     plt.tight_layout(rect=[0, 0, 0.98, 0.96])
 
-    fig.suptitle(f'{patient_id} | Epoch {epoch_idx} ({label}) | Order p={p_order} | Max Connectivity={global_max:.3f}', 
-                fontsize=14, fontweight='bold')
+    # Updated title to show actual max and fixed scale
+    fig.suptitle(
+        f'{patient_id} | Epoch {epoch_idx} ({label}) | Order p={p_order} | Color scale: [0.0, 1.0] | Actual max={actual_max:.3f}',
+        fontsize=14, fontweight='bold'
+    )
 
     save_name = f"{patient_id}_ep{epoch_idx:03d}_{label}.png"
     save_path = output_dir / save_name
@@ -157,9 +185,8 @@ def plot_epoch(data, epoch_idx, patient_id, output_dir):
     print(f"✅ Saved: {save_name}")
 
 
-
 def plot_single_band_comparison(data, epoch_idx, patient_id, output_dir, band='integrated'):
-    """Plot a single band with better detail for thesis figures."""
+    """Plot a single band with FIXED [0,1] scale for thesis figures."""
     
     n_epochs = len(data['orders'])
     if epoch_idx >= n_epochs:
@@ -168,20 +195,28 @@ def plot_single_band_comparison(data, epoch_idx, patient_id, output_dir, band='i
     
     dtf = data[f'dtf_{band}'][epoch_idx]
     pdc = data[f'pdc_{band}'][epoch_idx]
-    #label = "ICTAL" if data['labels'][epoch_idx] == 1 else "PRE-ICTAL"
-    # Alternative: Generic temporal indicator
-    label = "Unknown"  # Until labels are fixed
+    
+    if 'labels' in data:
+        label = "Ictal" if data['labels'][epoch_idx] == 1 else "Pre-ictal"
+    else:
+        label = "Unknown"
 
     p_order = data['orders'][epoch_idx]
     
+    # =========================================================================
+    # CRITICAL FIX: Use FIXED [0, 1] scale
+    # =========================================================================
+    FIXED_VMIN = 0.0
+    FIXED_VMAX = 1.0
+    
+    actual_max = max(dtf.max(), pdc.max())
+    
     fig, axes = plt.subplots(1, 2, figsize=(16, 7))
     
-    global_max = max(dtf.max(), pdc.max())
-    
-    # DTF
+    # DTF with FIXED scale
     sns.heatmap(dtf, ax=axes[0], cmap='viridis', square=True,
                xticklabels=CHANNEL_NAMES, yticklabels=CHANNEL_NAMES,
-               vmin=0, vmax=global_max,
+               vmin=FIXED_VMIN, vmax=FIXED_VMAX,  # ← FIXED
                cbar_kws={'label': 'Connectivity Strength'},
                linewidths=0.5, linecolor='white')
     axes[0].set_title(f'DTF - {BAND_LABELS[band]}', fontsize=14, fontweight='bold')
@@ -190,10 +225,10 @@ def plot_single_band_comparison(data, epoch_idx, patient_id, output_dir, band='i
     axes[0].tick_params(axis='x', rotation=45)
     axes[0].tick_params(axis='y', rotation=0)
     
-    # PDC
+    # PDC with FIXED scale
     sns.heatmap(pdc, ax=axes[1], cmap='viridis', square=True,
                xticklabels=CHANNEL_NAMES, yticklabels=CHANNEL_NAMES,
-               vmin=0, vmax=global_max,
+               vmin=FIXED_VMIN, vmax=FIXED_VMAX,  # ← FIXED
                cbar_kws={'label': 'Connectivity Strength'},
                linewidths=0.5, linecolor='white')
     axes[1].set_title(f'PDC - {BAND_LABELS[band]}', fontsize=14, fontweight='bold')
@@ -202,8 +237,10 @@ def plot_single_band_comparison(data, epoch_idx, patient_id, output_dir, band='i
     axes[1].tick_params(axis='x', rotation=45)
     axes[1].tick_params(axis='y', rotation=0)
     
-    fig.suptitle(f'{patient_id} | Epoch {epoch_idx} ({label}) | Order p={p_order}', 
-                fontsize=16, fontweight='bold')
+    fig.suptitle(
+        f'{patient_id} | Epoch {epoch_idx} ({label}) | Order p={p_order} | Color scale: [0.0, 1.0] | Actual max={actual_max:.3f}', 
+        fontsize=16, fontweight='bold'
+    )
     
     plt.tight_layout()
     
@@ -211,7 +248,7 @@ def plot_single_band_comparison(data, epoch_idx, patient_id, output_dir, band='i
     save_path = output_dir / save_name
     plt.savefig(save_path, dpi=200, bbox_inches='tight')
     plt.close()
-    print(f"Saved detailed plot: {save_name}")
+    print(f"✅ Saved detailed plot: {save_name}")
 
 
 # ============================================================================
@@ -219,7 +256,9 @@ def plot_single_band_comparison(data, epoch_idx, patient_id, output_dir, band='i
 # ============================================================================
 
 def main():
-    parser = argparse.ArgumentParser(description="Visualize Connectivity Matrices")
+    parser = argparse.ArgumentParser(
+        description="Visualize Connectivity Matrices with FIXED [0,1] color scale"
+    )
     parser.add_argument("--file", required=True, help="Path to a single .npz file")
     parser.add_argument("--output_dir", required=True, help="Where to save images")
     parser.add_argument("--epochs", nargs='+', type=int, default=[0, 10, 20], 
@@ -241,7 +280,7 @@ def main():
     output_dir.mkdir(parents=True, exist_ok=True)
     
     if not file_path.exists():
-        print(f"Error: File not found: {file_path}")
+        print(f"❌ Error: File not found: {file_path}")
         return
 
     print(f"Loading: {file_path.name}")
@@ -249,13 +288,19 @@ def main():
     patient_id = file_path.stem.replace('_graphs', '')
     
     print(f"   Total epochs: {len(data['orders'])}")
-    print(f"   Ictal epochs: {np.sum(data['labels'] == 1)}")
-    print(f"   Pre-ictal epochs: {np.sum(data['labels'] == 0)}")
+    if 'labels' in data:
+        print(f"   Ictal epochs: {np.sum(data['labels'] == 1)}")
+        print(f"   Pre-ictal epochs: {np.sum(data['labels'] == 0)}")
+    
+    print(f"\n{'='*80}")
+    print(f"USING FIXED COLOR SCALE: [0.0, 1.0]")
+    print(f"This ensures colors are comparable across ALL epochs and subjects")
+    print(f"{'='*80}\n")
 
     # Determine which epochs to plot
     epochs_to_plot = list(args.epochs)
     
-    if args.all_epilepsy:
+    if args.all_epilepsy and 'labels' in data:
         epilepsy_indices = np.where(data['labels'] == 1)[0]
         if len(epilepsy_indices) > 0:
             print(f"Found {len(epilepsy_indices)} epilepsy epochs! Adding them.")
@@ -263,7 +308,7 @@ def main():
         else:
             print("No epilepsy epochs found.")
     
-    if args.all_control:
+    if args.all_control and 'labels' in data:
         control_indices = np.where(data['labels'] == 0)[0]
         if len(control_indices) > 0:
             print(f"Found {len(control_indices)} control epochs! Adding them.")
@@ -276,10 +321,10 @@ def main():
     
     # Safety limit
     if len(epochs_to_plot) > args.max_plots:
-        print(f"âš ï¸  Too many plots requested ({len(epochs_to_plot)}). Limiting to {args.max_plots}.")
+        print(f"⚠️  Too many plots requested ({len(epochs_to_plot)}). Limiting to {args.max_plots}.")
         epochs_to_plot = epochs_to_plot[:args.max_plots]
     
-    print(f"Generating plots for {len(epochs_to_plot)} epochs")
+    print(f"Generating plots for {len(epochs_to_plot)} epochs\n")
     
     # Generate full 2x7 grid plots
     for ep in epochs_to_plot:
@@ -291,10 +336,15 @@ def main():
         for ep in epochs_to_plot:
             plot_single_band_comparison(data, ep, patient_id, output_dir, args.detailed_band)
     
-    print(f"\Done! Images saved in: {output_dir}")
+    print(f"\n✅ Done! Images saved in: {output_dir}")
     print(f"   Generated {len(epochs_to_plot)} full plots")
     if args.detailed_band:
         print(f"   Generated {len(epochs_to_plot)} detailed {args.detailed_band} plots")
+    print(f"\n{'='*80}")
+    print(f"All plots use FIXED color scale [0.0, 1.0]")
+    print(f"→ Same colors = same values across ALL figures")
+    print(f"→ Direct visual comparison is now possible!")
+    print(f"{'='*80}")
 
 
 if __name__ == "__main__":
