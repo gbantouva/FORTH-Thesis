@@ -254,6 +254,12 @@ def process_subject_file(args_bundle):
         valid_indices = []
         orders = []
         
+        # =====================================================================
+        # NEW: Create epoch_present_mask to track which epochs succeeded
+        # =====================================================================
+        n_total_epochs = len(epochs)
+        epoch_present_mask = np.zeros(n_total_epochs, dtype=bool)
+        
         # Process each epoch
         for i in range(len(epochs)):
             result = process_single_epoch(epochs[i], fs, fixed_order, nfft)
@@ -266,6 +272,7 @@ def process_subject_file(args_bundle):
                 
                 valid_indices.append(i)
                 orders.append(result['order'])
+                epoch_present_mask[i] = True  # Mark epoch as successful
         
         # Save if we have valid epochs
         if len(valid_indices) > 0:
@@ -289,6 +296,12 @@ def process_subject_file(args_bundle):
             
             # Save
             np.savez_compressed(out_file, **save_dict)
+            
+            # ================================================================
+            # NEW: Save epoch_present_mask to epochs directory
+            # ================================================================
+            mask_file = epochs_file.parent / f"{subject_name}_epoch_present_mask.npy"
+            np.save(mask_file, epoch_present_mask)
             
             # Return success with first epoch data for plotting
             return ('success', len(valid_indices), subject_name,
