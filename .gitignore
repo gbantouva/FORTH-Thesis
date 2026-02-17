@@ -4,3 +4,6 @@
 /figures
 /figures
 *.pyc
+src/signals_test3_19ch_ground_truth.png
+src/signals_test3_19ch_visualization.png
+/src/validation_results_19ch
