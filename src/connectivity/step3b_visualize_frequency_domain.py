@@ -9,7 +9,7 @@ rather than just averaging over frequency bands.
 
 Usage:
     python visualize_frequency_domain_pdc.py \
-        --file connectivity/subject_01_graphs.npz \
+        --file preprocessed_epochs/subject_01_epochs.npy \
         --output_dir figures/frequency_domain \
         --metric pdc \
         --condition pre_ictal
