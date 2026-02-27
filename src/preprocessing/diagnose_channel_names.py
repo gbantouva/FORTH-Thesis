@@ -129,27 +129,3 @@ if hasattr(seizure, '_fieldnames'):
                 print(f"  Content: {val}")
             else:
                 print(f"  First 10: {val.flat[:10]}")
-
-print(f"\n{'='*80}")
-print("RECOMMENDATION")
-print("="*80)
-
-print("""
-Based on the data:
-  • 34 subjects, each with exactly 19 channels
-  • This is a standard clinical EEG dataset
-  • 19 channels indicates standard 10-20 montage
-
-MOST LIKELY CHANNEL ORDER (Standard 19-channel montage):
-  ['Fp1', 'Fp2', 'F7', 'F3', 'Fz', 'F4', 'F8',
-   'T3', 'C3', 'Cz', 'C4', 'T4',
-   'T5', 'P3', 'Pz', 'P4', 'T6', 
-   'O1', 'O2']
-
-ACTION:
-  1. Use the standard montage above for your analysis
-  2. If you need absolute certainty, verify with your professor
-  3. The exact order might vary slightly, but these are the channels
-""")
-
-print("="*80)
