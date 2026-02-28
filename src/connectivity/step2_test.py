@@ -2,7 +2,7 @@
 Step 2 — Test Suite
 ====================
 Comprehensive correctness tests for compute_dtf_pdc_from_var.
-All tests use YOUR exact functions imported from step2_compute_connectivity.py.
+All tests use YOUR exact functions imported from step2_compute_connectivity_updated.py.
 
 Tests
 -----
@@ -26,7 +26,7 @@ import numpy as np
 from statsmodels.tsa.vector_ar.var_model import VAR
 
 sys.path.insert(0, '.')
-from step2_compute_connectivity import (
+from step2_compute_connectivity_updated import (
     compute_dtf_pdc_from_var,
     verify_spectrum,
     process_single_epoch,
