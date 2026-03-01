@@ -15,7 +15,8 @@ KEY DESIGN DECISIONS (documented here for thesis):
    After averaging over a band these sums will NOT be 1 — that is expected.
 
 3. Diagonal set to ZERO AFTER band averaging:
-   At spectrum level, DTF[i,i,f] = PDC[i,i,f] = 1 by construction.
+   Diagonal is ≤ 1 at spectrum level (= 1 only for isolated nodes).   
+   It is zeroed here (after averaging) to remove self-edges from the GNN graph.
    Self-connectivity is a mathematical artefact, not a brain connection.
    Zeroing BEFORE averaging would break the spectrum-level normalization check.
 
@@ -229,7 +230,7 @@ def process_single_epoch(data, fs, fixed_order, nfft, verify=False, epoch_idx=No
             pdc_band = pdc_s[:, :, idx].mean(axis=2)   # (K, K)
 
             # ── zero diagonal AFTER averaging ───────────────────────────────
-            # At spectrum level DTF[i,i,f] = PDC[i,i,f] = 1 (math artefact).
+            # Diagonal is ≤ 1 at spectrum level (= 1 only for isolated nodes).
             # Zeroing before averaging would invalidate the normalization check.
             # Zeroing after averaging removes self-edges for the GNN.
             np.fill_diagonal(dtf_band, 0.0)
@@ -406,7 +407,7 @@ def save_diagnostic_plot(dtf, pdc, fixed_order, subject_name, output_dir):
     ]:
         sns.heatmap(mat, ax=ax, cmap='viridis', square=True,
                     xticklabels=CHANNEL_NAMES, yticklabels=CHANNEL_NAMES,
-                    vmin=0, vmax=vmax,
+                    vmin=0, vmax=1,
                     cbar_kws={'label': 'Connectivity (diagonal=0)'})
         ax.set_title(title, fontsize=12, fontweight='bold')
         ax.set_xlabel('Source  (From j)', fontsize=10)
