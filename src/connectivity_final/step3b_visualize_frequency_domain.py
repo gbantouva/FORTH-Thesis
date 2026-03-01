@@ -500,7 +500,7 @@ def main():
                              '(used for training mask alignment)')
     parser.add_argument('--output_dir',        required=True)
     parser.add_argument('--subject_ids', nargs='+', type=int,
-                        default=list(range(2, 35)),
+                        default=list(range(1, 35)),
                         help='Subject IDs to process (default: 2–34, skips 1)')
     parser.add_argument('--fs',    type=int, default=256, help='Sampling rate (default: 256)')
     parser.add_argument('--nfft',  type=int, default=512, help='FFT length (default: 512)')
@@ -532,9 +532,9 @@ def main():
     success, errors = 0, 0
 
     for subj_id in args.subject_ids:
-        if subj_id == 1:
-            print(f'\n  Skipping subject_01 — PAT 11 not in paper')
-            continue
+        #if subj_id == 1:
+        #    print(f'\n  Skipping subject_01 — PAT 11 not in paper')
+        #    continue
         try:
             ok = process_subject(
                 subj_id,

@@ -507,14 +507,22 @@ def plot_focused_pairs(focus_channels, connectivity, time, first_ictal_idx,
     # y limits from 99th percentile of total to avoid outlier stretching
     outflow_all = connectivity.sum(axis=1)
     inflow_all  = connectivity.sum(axis=2)
-    global_ymax = np.percentile(outflow_all + inflow_all, 99) * 1.15
-    global_ymin = -0.01
+    #global_ymax = np.percentile(outflow_all + inflow_all, 99) * 1.15
+    #global_ymin = -0.01
+    # PDC values are always in [0, 1] by definition (column-normalised)
+    # Total (outflow + inflow) can reach max 2.0
+    global_ymin = 0.0
+    global_ymax = 1.0   # use 2.0 for the TOTAL column if you want full range
+
 
     for row, ch_name in enumerate(focus_channels):
         ch_idx   = CHANNELS.index(ch_name)
         ax_out   = axes[row, 0]
         ax_in    = axes[row, 1]
         ax_total = axes[row, 2]
+        ax_out.set_ylim([0.0, 1.0])
+        ax_in.set_ylim([0.0, 1.0])
+        ax_total.set_ylim([0.0, 2.0])   # total = outflow + inflow, max is 2
 
         outflow = connectivity[:, :, ch_idx]   # (n_epochs, 19) — what ch sends
         inflow  = connectivity[:, ch_idx, :]   # (n_epochs, 19) — what ch receives
