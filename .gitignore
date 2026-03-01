@@ -12,3 +12,9 @@ src/signals_test3_19ch_visualization.png
 /results
 /test
 /test1
+/bias_analysis
+/gcn_results
+/gnn
+/src/test_outputs/heatmaps
+/ssl_results
+/ssl_pretrained
