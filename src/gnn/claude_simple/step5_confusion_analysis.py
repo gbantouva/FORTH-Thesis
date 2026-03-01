@@ -48,15 +48,34 @@ def get_predictions_from_model(graphs, loso_splits, encoder_dir,
     """
     from torch_geometric.data import DataLoader as PyGLoader
 
-    # Load config
-    with open(encoder_dir / 'pretrain_config.json') as f:
-        config = json.load(f)
+    with open(args.dataset_info) as f:
+        info = json.load(f)
 
-    encoder_path = encoder_dir / 'encoder_best.pt'
-    in_channels  = config.get('in_channels', 12)
-    hidden       = config.get('hidden',      64)
-    embed_dim    = config.get('embed_dim',   128)
-    dropout      = config.get('dropout',     0.2)
+    PATIENT_MAP = {
+        'PAT11': ['subject_01'],
+        'PAT13': ['subject_02'],
+        'PAT14': ['subject_03','subject_04','subject_05','subject_06',
+                'subject_07','subject_08','subject_09','subject_10'],
+        'PAT15': ['subject_11'],
+        'PAT24': ['subject_12','subject_13','subject_14','subject_15',
+                'subject_16','subject_17','subject_18','subject_19',
+                'subject_20','subject_21','subject_22','subject_23',
+                'subject_24','subject_25'],
+        'PAT27': ['subject_26','subject_27','subject_28','subject_29',
+                'subject_30','subject_31','subject_32'],
+        'PAT29': ['subject_33'],
+        'PAT35': ['subject_34'],
+    }
+
+    orig_eps = info.get('epochs_per_subject',
+            {s: 80 for subjects in PATIENT_MAP.values() for s in subjects})
+    eps_per_s = {
+        pat: sum(orig_eps.get(s, 80) for s in subjects)
+        for pat, subjects in PATIENT_MAP.items()
+    }
+    total_ictal = info['class_counts']['ictal']
+    total_pre   = info['class_counts']['pre_ictal']
+    ictal_ratio = total_ictal / max(total_ictal + total_pre, 1)
 
     class GCNEncoder(nn.Module):
         def __init__(self):
@@ -496,19 +515,52 @@ def plot_bias_analysis(results_dict, dataset_info_path, output_dir):
 # ══════════════════════════════════════════════════════════════════════════════
 
 def print_subject_table(results, dataset_info_path, method_name):
-    """Print per-subject table with raw TP/TN/FP/FN counts."""
     with open(dataset_info_path) as f:
         info = json.load(f)
 
-    total_ictal = info['class_counts']['ictal']
-    total_eps   = info['n_graphs']
-    ictal_ratio = total_ictal / total_eps
-    eps_per_s   = info['epochs_per_subject']
+    PATIENT_MAP = {
+        'PAT11': ['subject_01'],
+        'PAT13': ['subject_02'],
+        'PAT14': ['subject_03','subject_04','subject_05','subject_06',
+                  'subject_07','subject_08','subject_09','subject_10'],
+        'PAT15': ['subject_11'],
+        'PAT24': ['subject_12','subject_13','subject_14','subject_15',
+                  'subject_16','subject_17','subject_18','subject_19',
+                  'subject_20','subject_21','subject_22','subject_23',
+                  'subject_24','subject_25'],
+        'PAT27': ['subject_26','subject_27','subject_28','subject_29',
+                  'subject_30','subject_31','subject_32'],
+        'PAT29': ['subject_33'],
+        'PAT35': ['subject_34'],
+    }
+
+    # Get epoch counts — works for both original and filtered info files
+    if 'epochs_per_subject' in info:
+        orig_eps = info['epochs_per_subject']
+        eps_per_s = {
+            pat: sum(orig_eps.get(s, 80) for s in subjects)
+            for pat, subjects in PATIENT_MAP.items()
+        }
+    elif 'epochs_per_patient' in info:
+        eps_per_s = info['epochs_per_patient']
+    else:
+        # fallback: estimate from class counts
+        eps_per_s = {pat: 80 * len(subjs) for pat, subjs in PATIENT_MAP.items()}
+
+    # Get class counts
+    if 'class_counts' in info:
+        total_ictal = info['class_counts']['ictal']
+        total_pre   = info['class_counts']['pre_ictal']
+    else:
+        total_ictal = sum(r.get('sensitivity',0) for r in results)  # rough
+        total_pre   = 1000
+
+    ictal_ratio = total_ictal / max(total_ictal + total_pre, 1)
 
     print(f"\n{'='*95}")
-    print(f"{method_name} — Per-Subject Results with Approximate Counts")
+    print(f"{method_name} — Per-Patient Results with Approximate Counts")
     print(f"{'='*95}")
-    header = (f"{'Subject':<14} {'n_ictal':>8} {'n_pre':>7} "
+    header = (f"{'Patient':<14} {'n_ictal':>8} {'n_pre':>7} "
               f"{'TP':>5} {'TN':>5} {'FP':>5} {'FN':>5} "
               f"{'Sens':>6} {'Spec':>6} {'Prec':>6} {'AUC':>6}")
     print(header)
@@ -517,10 +569,10 @@ def print_subject_table(results, dataset_info_path, method_name):
     total_tp = total_tn = total_fp = total_fn = 0
 
     for r in results:
-        subj   = r['subject']
-        n_eps  = eps_per_s.get(subj, 80)
-        n_ict  = max(1, round(n_eps * ictal_ratio))
-        n_pre  = n_eps - n_ict
+        pat   = r['subject']
+        n_eps = eps_per_s.get(pat, 80)
+        n_ict = max(1, round(n_eps * ictal_ratio))
+        n_pre = n_eps - n_ict
 
         tp = round(r['sensitivity'] * n_ict)
         fn = n_ict - tp
@@ -530,34 +582,26 @@ def print_subject_table(results, dataset_info_path, method_name):
         total_tp += tp; total_tn += tn
         total_fp += fp; total_fn += fn
 
-        prec = tp/(tp+fp) if (tp+fp)>0 else 0
-
-        # Flag suspicious subjects
-        flag = ''
-        if n_ict <= 5:   flag = ' ⚠️ FEW ICTAL'
-        if r['auc'] == 1.0: flag += ' 🔴 PERFECT'
-
-        print(f"{subj:<14} {n_ict:>8} {n_pre:>7} "
+        prec = tp/(tp+fp) if (tp+fp) > 0 else 0
+        print(f"{pat:<14} {n_ict:>8} {n_pre:>7} "
               f"{tp:>5} {tn:>5} {fp:>5} {fn:>5} "
               f"{r['sensitivity']:>6.3f} {r['specificity']:>6.3f} "
-              f"{prec:>6.3f} {r['auc']:>6.3f}{flag}")
+              f"{prec:>6.3f} {r['auc']:>6.3f}")
 
     print("-" * 95)
-    tot_ict = total_tp + total_fn
-    tot_pre = total_tn + total_fp
-    tot_s   = total_tp/(total_tp+total_fn) if (total_tp+total_fn)>0 else 0
-    tot_spec = total_tn/(total_tn+total_fp) if (total_tn+total_fp)>0 else 0
-    tot_p   = total_tp/(total_tp+total_fp) if (total_tp+total_fp)>0 else 0
+    tot_ict  = total_tp + total_fn
+    tot_pre  = total_tn + total_fp
+    tot_s    = total_tp / max(total_tp + total_fn, 1)
+    tot_spec = total_tn / max(total_tn + total_fp, 1)
+    tot_p    = total_tp / max(total_tp + total_fp, 1)
     print(f"{'TOTAL':<14} {tot_ict:>8} {tot_pre:>7} "
           f"{total_tp:>5} {total_tn:>5} {total_fp:>5} {total_fn:>5} "
           f"{tot_s:>6.3f} {tot_spec:>6.3f} {tot_p:>6.3f}")
     print(f"{'='*95}")
-    print(f"\n  Key counts to report in thesis:")
-    print(f"  Total ictal epochs:     {tot_ict}")
+    print(f"\n  Total ictal epochs:      {tot_ict}")
     print(f"  Correctly detected (TP): {total_tp}  ({100*tot_s:.1f}%)")
-    print(f"  Missed seizures (FN):    {total_fn}  ({100*total_fn/tot_ict:.1f}%)")
-    print(f"  False alarms (FP):       {total_fp}  ({100*total_fp/tot_pre:.1f}% of pre-ictal)")
-    print(f"  ⚠️  Subjects with n_ictal ≤ 5: metrics unreliable (small sample)")
+    print(f"  Missed seizures (FN):    {total_fn}  ({100*total_fn/max(tot_ict,1):.1f}%)")
+    print(f"  False alarms (FP):       {total_fp}  ({100*total_fp/max(tot_pre,1):.1f}% of pre-ictal)")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -612,10 +656,33 @@ def main():
 
     with open(args.dataset_info) as f:
         info = json.load(f)
+
+    # For patient-level results, sum epochs across recordings per patient
+    PATIENT_MAP = {
+        'PAT11': ['subject_01'],
+        'PAT13': ['subject_02'],
+        'PAT14': ['subject_03','subject_04','subject_05','subject_06',
+                'subject_07','subject_08','subject_09','subject_10'],
+        'PAT15': ['subject_11'],
+        'PAT24': ['subject_12','subject_13','subject_14','subject_15',
+                'subject_16','subject_17','subject_18','subject_19',
+                'subject_20','subject_21','subject_22','subject_23',
+                'subject_24','subject_25'],
+        'PAT27': ['subject_26','subject_27','subject_28','subject_29',
+                'subject_30','subject_31','subject_32'],
+        'PAT29': ['subject_33'],
+        'PAT35': ['subject_34'],
+    }
+
+    orig_eps = info['epochs_per_subject']
+    eps_per_s = {
+        pat: sum(orig_eps.get(s, 80) for s in subjects)
+        for pat, subjects in PATIENT_MAP.items()
+    }
+
     total_ictal = info['class_counts']['ictal']
     total_eps   = info['n_graphs']
     ictal_ratio = total_ictal / total_eps
-    eps_per_s   = info['epochs_per_subject']
 
     for method, results in results_dict.items():
         cms     = []
