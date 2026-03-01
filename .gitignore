@@ -18,3 +18,7 @@ src/signals_test3_19ch_visualization.png
 /src/test_outputs/heatmaps
 /ssl_results
 /ssl_pretrained
+/gcn_results_v2
+/gnn_filtered
+/ssl_pretrained_v2
+/ssl_results_v2
