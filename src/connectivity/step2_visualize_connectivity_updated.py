@@ -355,7 +355,8 @@ def main():
             do_baccala = False
         else:
             from statsmodels.tsa.vector_ar.var_model import VAR
-            from step2_compute_connectivity_updated import compute_dtf_pdc_from_var            epoch_dir = Path(args.epochdir)
+            from step2_compute_connectivity_updated import compute_dtf_pdc_from_var
+            epoch_dir = Path(args.epochdir)
 
     for npz_file in tqdm(npz_files, desc='Subjects', unit='subject'):
         subject_name = npz_file.stem.replace('_graphs', '')

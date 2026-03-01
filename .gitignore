@@ -22,3 +22,5 @@ src/signals_test3_19ch_visualization.png
 /gnn_filtered
 /ssl_pretrained_v2
 /ssl_results_v2
+/final_connectivity
+/final_preprocessed_epochs
