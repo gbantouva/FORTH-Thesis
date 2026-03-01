@@ -488,7 +488,7 @@ def main():
     print("=" * 72)
 
     print("\nLoading graphs (labels ignored during pretraining)...")
-    all_graphs = torch.load(data_dir / 'dataset.pt', map_location='cpu')
+    all_graphs = torch.load(data_dir / 'dataset_filtered.pt', map_location='cpu')
     print(f"  ✅ Loaded {len(all_graphs):,} graphs")
     print(f"  ℹ️  Labels exist but are NOT used during pretraining")
 
