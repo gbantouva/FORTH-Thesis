@@ -469,7 +469,7 @@ def main():
                         help='Directory with subject_XX_training_mask.npy files')
     parser.add_argument('--output_dir', required=True)
     parser.add_argument('--band',      default='integrated')
-    parser.add_argument('--metric',    default='dtf',
+    parser.add_argument('--metric',    default='pdc',
                         choices=['pdc', 'dtf'])
     parser.add_argument('--direction', default='total',
                         choices=['outflow', 'inflow', 'total'],
