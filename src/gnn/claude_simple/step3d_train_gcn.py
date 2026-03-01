@@ -494,12 +494,16 @@ def main():
     print("=" * 72)
 
     print("\nLoading dataset...")
-    graphs = torch.load(data_dir / 'dataset.pt', map_location='cpu')
+    graphs = torch.load(data_dir / 'dataset_filtered.pt', map_location='cpu')
     print(f"  ✅ Loaded {len(graphs):,} graphs")
 
-    with open(data_dir / 'loso_splits.json') as f:
-        loso_splits = json.load(f)
+    #with open(data_dir / 'loso_splits.json') as f:
+    #    loso_splits = json.load(f)
 
+    splits_file = Path(args.datadir) / 'loso_splits_patient.json'
+    with open(splits_file) as f:
+        loso_splits = json.load(f)
+    
     folds = sorted(loso_splits.keys())
     if args.fold:
         if args.fold not in loso_splits:
