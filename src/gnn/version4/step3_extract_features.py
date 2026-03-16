@@ -1,8 +1,8 @@
 """
 Step 3 — Feature Extraction (Curated, Thesis-Ready)
 =====================================================
-DESIGN PHILOSOPHY (document this in your thesis):
-  - Small dataset → we use a CURATED, JUSTIFIED feature set (~50 flat features)
+DESIGN PHILOSOPHY:
+  - Small dataset : use a CURATED, JUSTIFIED feature set (~50 flat features)
     instead of throwing everything at a selector.
   - Every feature group has a neuroscientific reason to be there.
   - Features are organised into three groups:
@@ -239,7 +239,7 @@ def graph_level_features(dtf_integrated, pdc_integrated):
 
 
 # ─────────────────────────────────────────────────────────────
-# Per-node features for GNN  (unchanged from your original)
+# Per-node features for GNN 
 # Output: (19, 16)
 # ─────────────────────────────────────────────────────────────
 
