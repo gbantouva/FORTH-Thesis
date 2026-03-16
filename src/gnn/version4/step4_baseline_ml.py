@@ -5,7 +5,7 @@ DESIGN DECISIONS (document in thesis):
 
 1. EVALUATION: Leave-One-Patient-Out (LOPO) CV.
    Correct for clinical datasets — tests generalisation to an unseen patient.
-   We split by PATIENT (not subject), so PAT14's 8 recordings are either
+   We split by PATIENΤ, so PAT14's 8 recordings are either
    all in train or all in test.
 
 2. FEATURE SELECTION: None beyond what step3 already decided.
