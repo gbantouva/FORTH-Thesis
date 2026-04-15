@@ -24,3 +24,4 @@ src/signals_test3_19ch_visualization.png
 /ssl_results_v2
 /final_connectivity
 /final_preprocessed_epochs
+*.png
