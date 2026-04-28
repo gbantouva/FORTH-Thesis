@@ -1,0 +1,68 @@
+
+Generated Code
+
+import plotly.io as pio
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+import numpy as np
+import json
+
+channels = ['CH1', 'CH2', 'CH3', 'CH4', 'CH5']
+K = 5
+
+# Ground truth annotation
+# CH1->CH2->CH3->CH5, CH4 standalone
+# Strong cells expected: [1,0],[2,1],[4,2]
+
+matrices = {
+    'PDC (Baccalá & Sameshima)<br>Column-norm | A(f) | Direct only': PDC_bb,
+    'DTF Kaminski<br>Row-norm | H(f) | Sink-centric': DTF_row_bb,
+    'DTF Alexandra<br>Column-norm | H(f) | Source-centric': DTF_col_bb,
+}
+
+fig = make_subplots(
+    rows=1, cols=3,
+    subplot_titles=list(matrices.keys()),
+    horizontal_spacing=0.08
+)
+
+col = 1
+for title, M in matrices.items():
+    # Annotate text on cells
+    annotations_text = [[f"{M[i,j]:.3f}" for j in range(K)] for i in range(K)]
+    
+    heatmap = go.Heatmap(
+        z=M,
+        x=channels,
+        y=channels,
+        zmin=0, zmax=0.7,
+        colorscale='YlOrRd',
+        reversescale=True,
+        text=annotations_text,
+        texttemplate="%{text}",
+        textfont=dict(size=10),
+        showscale=(col == 3),
+        colorbar=dict(title="Value", x=1.02) if col == 3 else None,
+    )
+    fig.add_trace(heatmap, row=1, col=col)
+    fig.update_yaxes(autorange='reversed', title_text="Sink (i)" if col == 1 else "", row=1, col=col)
+    fig.update_xaxes(title_text="Source (j)", row=1, col=col)
+    col += 1
+
+fig.update_layout(
+    title={
+        "text": "PDC vs DTF vs DTF* — 5-Channel Simulated Test<br>"
+                "<span style='font-size:16px;font-weight:normal;'>"
+                "True structure: CH1→CH2→CH3→CH5 | CH4 standalone</span>"
+    },
+    height=520,
+)
+
+fig.write_image("connectivity_test_5ch.png")
+with open("connectivity_test_5ch.png.meta.json", "w") as f:
+    json.dump({
+        "caption": "PDC vs DTF vs DTF* on 5-channel simulated EEG (CH1→CH2→CH3→CH5, CH4 alone)",
+        "description": "Heatmap comparison of PDC, Kaminski DTF, and column-normalized DTF on a synthetic MVAR signal with known causal chain."
+    }, f)
+
+print("saved")
